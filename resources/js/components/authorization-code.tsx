@@ -67,18 +67,24 @@ export default function AuthorizationCodeManagement({ codes, authorizations, cod
 
     // 搜索框状态
     const [filterNameSearchTerm, setFilterNameSearchTerm] = useState('');
+    const [filterCodeSearchTerm, setFilterCodeSearchTerm] = useState('');
 
     // 下拉框显示状态
     const [isFilterNameDropdownOpen, setIsFilterNameDropdownOpen] = useState(false);
+    const [isFilterCodeDropdownOpen, setIsFilterCodeDropdownOpen] = useState(false);
 
     // 下拉框引用
     const filterNameDropdownRef = useRef<HTMLDivElement>(null);
+    const filterCodeDropdownRef = useRef<HTMLDivElement>(null);
 
     // 点击外部关闭下拉框
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (filterNameDropdownRef.current && !filterNameDropdownRef.current.contains(event.target as Node)) {
                 setIsFilterNameDropdownOpen(false);
+            }
+            if (filterCodeDropdownRef.current && !filterCodeDropdownRef.current.contains(event.target as Node)) {
+                setIsFilterCodeDropdownOpen(false);
             }
         };
 
@@ -91,6 +97,11 @@ export default function AuthorizationCodeManagement({ codes, authorizations, cod
     // 过滤授权码名称列表
     const filteredAuthCodeNames = codes.map(c => c.name).filter((name, index, self) =>
         self.indexOf(name) === index && name.toLowerCase().includes(filterNameSearchTerm.toLowerCase())
+    );
+
+    // 过滤授权码列表
+    const filteredAuthCodes = codes.map(c => c.code).filter((code, index, self) =>
+        self.indexOf(code) === index && code.toLowerCase().includes(filterCodeSearchTerm.toLowerCase())
     );
 
     // 分页
@@ -348,15 +359,78 @@ export default function AuthorizationCodeManagement({ codes, authorizations, cod
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="filterCode" className="text-sm">授权码</Label>
-                        <Input
-                            id="filterCode"
-                            placeholder="输入授权码"
-                            value={filterCode}
-                            onChange={(e) => {
-                                setFilterCode(e.target.value);
-                                setCurrentPage(1);
-                            }}
-                        />
+                        <div ref={filterCodeDropdownRef} className="relative">
+                            <div
+                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm cursor-pointer flex items-center justify-between"
+                                onClick={() => setIsFilterCodeDropdownOpen(!isFilterCodeDropdownOpen)}
+                            >
+                                <span className={filterCode ? '' : 'text-muted-foreground'}>
+                                    {filterCode || '全部授权码'}
+                                </span>
+                                {filterCode && (
+                                    <X
+                                        className="h-4 w-4 text-muted-foreground hover:text-foreground"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setFilterCode('');
+                                            setCurrentPage(1);
+                                        }}
+                                    />
+                                )}
+                            </div>
+                            {isFilterCodeDropdownOpen && (
+                                <div className="absolute z-50 mt-1 w-full rounded-md border border-input bg-background shadow-lg">
+                                    <div className="border-b border-border p-2">
+                                        <div className="relative">
+                                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                            <Input
+                                                placeholder="搜索授权码..."
+                                                value={filterCodeSearchTerm}
+                                                onChange={(e) => setFilterCodeSearchTerm(e.target.value)}
+                                                className="pl-9"
+                                                autoFocus
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="max-h-60 overflow-y-auto">
+                                        <div
+                                            className="px-3 py-2 hover:bg-muted cursor-pointer flex items-center gap-2"
+                                            onClick={() => {
+                                                setFilterCode('');
+                                                setCurrentPage(1);
+                                                setIsFilterCodeDropdownOpen(false);
+                                                setFilterCodeSearchTerm('');
+                                            }}
+                                        >
+                                            {!filterCode && <Check className="h-4 w-4" />}
+                                            <span className={!filterCode ? 'font-medium' : ''}>全部授权码</span>
+                                        </div>
+                                        {filteredAuthCodes.map((code) => (
+                                            <div
+                                                key={code}
+                                                className="px-3 py-2 hover:bg-muted cursor-pointer flex items-center gap-2"
+                                                onClick={() => {
+                                                    setFilterCode(code);
+                                                    setCurrentPage(1);
+                                                    setIsFilterCodeDropdownOpen(false);
+                                                    setFilterCodeSearchTerm('');
+                                                }}
+                                            >
+                                                {filterCode === code && <Check className="h-4 w-4" />}
+                                                <span className={filterCode === code ? 'font-medium' : ''}>
+                                                    {code}
+                                                </span>
+                                            </div>
+                                        ))}
+                                        {filteredAuthCodes.length === 0 && (
+                                            <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+                                                未找到匹配的授权码
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="filterStatus" className="text-sm">状态</Label>
