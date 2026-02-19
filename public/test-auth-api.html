@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>软件授权 API 测试工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group input[readonly] {
+            background: #f5f5f5;
+            color: #999;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .result.info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+
+        .result-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .result-content {
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .quick-actions {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .quick-actions h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .btn-small {
+            padding: 8px 15px;
+            font-size: 13px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 软件授权 API 测试工具</h1>
+            <p>用于测试软件授权接口</p>
+        </div>
+
+        <div class="content">
+            <form id="authForm">
+                <div class="form-group">
+                    <label for="apiUrl">API 接口地址</label>
+                    <input type="text" id="apiUrl" value="http://localhost:8000/api/software/authorize" placeholder="API 接口地址">
+                </div>
+
+                <div class="form-group">
+                    <label for="softwareName">软件名称 *</label>
+                    <input type="text" id="softwareName" required placeholder="例如：我的软件">
+                </div>
+
+                <div class="form-group">
+                    <label for="softwareVersion">软件版本号 *</label>
+                    <input type="text" id="softwareVersion" required placeholder="例如：1.0.0">
+                </div>
+
+                <div class="form-group">
+                    <label for="osVersion">操作系统版本 *</label>
+                    <input type="text" id="osVersion" required placeholder="例如：Windows 11">
+                </div>
+
+                <div class="form-group">
+                    <label for="biosUuid">BIOS UUID *</label>
+                    <input type="text" id="biosUuid" required placeholder="例如：550E8400-E29B-41D4-A716-446655440000">
+                </div>
+
+                <div class="form-group">
+                    <label for="motherboardSerial">主板序列号 *</label>
+                    <input type="text" id="motherboardSerial" required placeholder="例如：MB123456789">
+                </div>
+
+                <div class="form-group">
+                    <label for="cpuId">CPU ID *</label>
+                    <input type="text" id="cpuId" required placeholder="例如：CPU987654321">
+                </div>
+
+                <button type="submit" class="btn" id="submitBtn">
+                    测试授权
+                </button>
+            </form>
+
+            <div class="quick-actions">
+                <h3>快速填充测试数据</h3>
+                <button type="button" class="btn btn-small" onclick="fillTestData()">
+                    填充测试数据
+                </button>
+                <button type="button" class="btn btn-small" onclick="generateNewUuid()">
+                    生成新 UUID
+                </button>
+            </div>
+
+            <div id="result" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('authForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const resultDiv = document.getElementById('result');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const apiUrl = document.getElementById('apiUrl').value;
+            const data = {
+                software_name: document.getElementById('softwareName').value,
+                software_version: document.getElementById('softwareVersion').value,
+                os_version: document.getElementById('osVersion').value,
+                bios_uuid: document.getElementById('biosUuid').value,
+                motherboard_serial: document.getElementById('motherboardSerial').value,
+                cpu_id: document.getElementById('cpuId').value
+            };
+
+            // 显示加载状态
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loading"></span>正在请求...';
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                // 显示结果
+                resultDiv.style.display = 'block';
+
+                if (response.ok && result.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <div class="result-title">✓ 授权成功</div>
+                        <div class="result-content">${JSON.stringify(result, null, 2)}</div>
+                    `;
+                } else if (result.status === 'pending') {
+                    resultDiv.className = 'result info';
+                    resultDiv.innerHTML = `
+                        <div class="result-title">⏳ ${result.message}</div>
+                        <div class="result-content">${JSON.stringify(result, null, 2)}</div>
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        <div class="result-title">✗ ${result.message || '授权失败'}</div>
+                        <div class="result-content">${JSON.stringify(result, null, 2)}</div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <div class="result-title">✗ 请求失败</div>
+                    <div class="result-content">错误信息: ${error.message}\n\n请检查 API 地址是否正确，以及服务器是否正常运行。</div>
+                `;
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '测试授权';
+            }
+        });
+
+        function fillTestData() {
+            const uuid = generateUUID();
+            document.getElementById('softwareName').value = '测试软件';
+            document.getElementById('softwareVersion').value = '1.0.0';
+            document.getElementById('osVersion').value = 'Windows 11';
+            document.getElementById('biosUuid').value = uuid;
+            document.getElementById('motherboardSerial').value = generateSerial('MB');
+            document.getElementById('cpuId').value = generateSerial('CPU');
+        }
+
+        function generateNewUuid() {
+            document.getElementById('biosUuid').value = generateUUID();
+            document.getElementById('motherboardSerial').value = generateSerial('MB');
+            document.getElementById('cpuId').value = generateSerial('CPU');
+        }
+
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        function generateSerial(prefix) {
+            return prefix + Math.random().toString(36).substring(2, 11).toUpperCase();
+        }
+    </script>
+</body>
+</html>

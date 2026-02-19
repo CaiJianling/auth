@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>授权码API测试工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        h2 {
+            color: #444;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+        }
+        .result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .result code {
+            background: rgba(0,0,0,0.05);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .tab.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .code-example {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin-top: 10px;
+        }
+        .code-example pre {
+            margin: 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔑 授权码API测试工具</h1>
+        <p class="subtitle">测试使用授权码进行软件授权验证</p>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('test')">接口测试</div>
+            <div class="tab" onclick="switchTab('code')">代码示例</div>
+        </div>
+
+        <div id="testTab" class="tab-content active">
+            <div class="section">
+                <h2>📝 授权码验证</h2>
+                
+                <div class="input-group">
+                    <label for="authCode">授权码 (Authorization Code)</label>
+                    <input type="text" id="authCode" placeholder="请输入授权码" />
+                </div>
+
+                <div class="input-group">
+                    <label for="softwareName">软件名称</label>
+                    <input type="text" id="softwareName" placeholder="例如：MyApp" />
+                </div>
+
+                <div class="input-group">
+                    <label for="softwareVersion">软件版本</label>
+                    <input type="text" id="softwareVersion" placeholder="例如：1.0.0" />
+                </div>
+
+                <div class="input-group">
+                    <label for="osVersion">系统版本</label>
+                    <input type="text" id="osVersion" placeholder="例如：Windows 11" />
+                </div>
+
+                <div class="input-group">
+                    <label for="biosUuid">BIOS UUID</label>
+                    <input type="text" id="biosUuid" placeholder="主板BIOS UUID" />
+                </div>
+
+                <div class="input-group">
+                    <label for="motherboardSerial">主板序列号</label>
+                    <input type="text" id="motherboardSerial" placeholder="主板序列号" />
+                </div>
+
+                <div class="input-group">
+                    <label for="cpuId">CPU ID</label>
+                    <input type="text" id="cpuId" placeholder="CPU处理器ID" />
+                </div>
+
+                <button onclick="testAuthorization()">发送授权请求</button>
+
+                <div id="result" class="result"></div>
+            </div>
+
+            <div class="section">
+                <h2>ℹ️ 使用说明</h2>
+                <p style="color: #555; line-height: 1.6;">
+                    <strong>Bearer Token 认证方式：</strong><br>
+                    1. 在授权码管理页面创建授权码<br>
+                    2. 复制授权码<br>
+                    3. 在API请求的 Authorization header 中使用 Bearer Token 格式：<code>Authorization: Bearer YOUR_CODE</code><br><br>
+                    <strong>接口地址：</strong> <code>/api/software/authorize-with-code</code><br>
+                    <strong>请求方法：</strong> POST<br>
+                    <strong>Content-Type：</strong> application/json
+                </p>
+            </div>
+        </div>
+
+        <div id="codeTab" class="tab-content">
+            <div class="section">
+                <h2>💻 Python 示例</h2>
+                <div class="code-example">
+<pre>
+import requests
+
+def authorize_with_code():
+    url = "http://your-domain.com/api/software/authorize-with-code"
+    
+    headers = {
+        "Authorization": "Bearer YOUR_AUTHORIZATION_CODE",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "software_name": "MyApp",
+        "software_version": "1.0.0",
+        "os_version": "Windows 11",
+        "bios_uuid": "12345678-1234-1234-1234-123456789ABC",
+        "motherboard_serial": "SN123456",
+        "cpu_id": "CPU001"
+    }
+    
+    response = requests.post(url, json=payload, headers=headers, timeout=10)
+    result = response.json()
+    
+    if result['success']:
+        print("✅ 授权成功:", result['message'])
+    else:
+        print("❌ 授权失败:", result['message'])
+
+if __name__ == '__main__':
+    authorize_with_code()
+</pre>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>🟨 JavaScript/Node.js 示例</h2>
+                <div class="code-example">
+<pre>
+async function authorizeWithCode() {
+    const url = "http://your-domain.com/api/software/authorize-with-code";
+    const authCode = "YOUR_AUTHORIZATION_CODE";
+    
+    const headers = {
+        "Authorization": `Bearer ${authCode}`,
+        "Content-Type": "application/json"
+    };
+    
+    const payload = {
+        software_name: "MyApp",
+        software_version: "1.0.0",
+        os_version: "Windows 11",
+        bios_uuid: "12345678-1234-1234-1234-123456789ABC",
+        motherboard_serial: "SN123456",
+        cpu_id: "CPU001"
+    };
+    
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(payload)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            console.log("✅ 授权成功:", result.message);
+        } else {
+            console.error("❌ 授权失败:", result.message);
+        }
+    } catch (error) {
+        console.error("请求失败:", error);
+    }
+}
+
+authorizeWithCode();
+</pre>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>🔶 C# 示例</h2>
+                <div class="code-example">
+<pre>
+using System;
+using System.Net.Http;
+using System.Text;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
+
+public class AuthorizationClient
+{
+    private static readonly HttpClient client = new HttpClient();
+    
+    public static async Task AuthorizeWithCode()
+    {
+        var url = "http://your-domain.com/api/software/authorize-with-code";
+        var authCode = "YOUR_AUTHORIZATION_CODE";
+        
+        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {authCode}");
+        client.DefaultRequestHeaders.Add("Content-Type", "application/json");
+        
+        var payload = new
+        {
+            software_name = "MyApp",
+            software_version = "1.0.0",
+            os_version = "Windows 11",
+            bios_uuid = "12345678-1234-1234-1234-123456789ABC",
+            motherboard_serial = "SN123456",
+            cpu_id = "CPU001"
+        };
+        
+        try
+        {
+            var json = JsonConvert.SerializeObject(payload);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            
+            var response = await client.PostAsync(url, content);
+            var responseString = await response.Content.ReadAsStringAsync();
+            var result = JsonConvert.DeserializeObject<dynamic>(responseString);
+            
+            if (result.success)
+            {
+                Console.WriteLine($"✅ 授权成功: {result.message}");
+            }
+            else
+            {
+                Console.WriteLine($"❌ 授权失败: {result.message}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"请求失败: {ex.Message}");
+        }
+    }
+}
+
+// 调用示例
+await AuthorizationClient.AuthorizeWithCode();
+</pre>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>🐍 PHP 示例</h2>
+                <div class="code-example">
+<pre>
+&lt;?php
+function authorizeWithCode() {
+    $url = "http://your-domain.com/api/software/authorize-with-code";
+    $authCode = "YOUR_AUTHORIZATION_CODE";
+    
+    $headers = [
+        "Authorization: Bearer " . $authCode,
+        "Content-Type: application/json"
+    ];
+    
+    $payload = [
+        "software_name" => "MyApp",
+        "software_version" => "1.0.0",
+        "os_version" => "Windows 11",
+        "bios_uuid" => "12345678-1234-1234-1234-123456789ABC",
+        "motherboard_serial" => "SN123456",
+        "cpu_id" => "CPU001"
+    ];
+    
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    $result = json_decode($response, true);
+    
+    if ($result['success']) {
+        echo "✅ 授权成功: " . $result['message'] . "\n";
+    } else {
+        echo "❌ 授权失败: " . $result['message'] . "\n";
+    }
+}
+
+authorizeWithCode();
+?&gt;
+</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            document.querySelector(`.tab:nth-child(${tab === 'test' ? 1 : 2})`).classList.add('active');
+            document.getElementById(tab + 'Tab').classList.add('active');
+        }
+
+        async function testAuthorization() {
+            const authCode = document.getElementById('authCode').value.trim();
+            const softwareName = document.getElementById('softwareName').value.trim();
+            const softwareVersion = document.getElementById('softwareVersion').value.trim();
+            const osVersion = document.getElementById('osVersion').value.trim();
+            const biosUuid = document.getElementById('biosUuid').value.trim();
+            const motherboardSerial = document.getElementById('motherboardSerial').value.trim();
+            const cpuId = document.getElementById('cpuId').value.trim();
+
+            if (!authCode || !softwareName || !softwareVersion || !osVersion || !biosUuid || !motherboardSerial || !cpuId) {
+                alert('请填写所有必填字段');
+                return;
+            }
+
+            const url = '/api/software/authorize-with-code';
+            
+            const headers = {
+                'Authorization': `Bearer ${authCode}`,
+                'Content-Type': 'application/json'
+            };
+
+            const payload = {
+                software_name: softwareName,
+                software_version: softwareVersion,
+                os_version: osVersion,
+                bios_uuid: biosUuid,
+                motherboard_serial: motherboardSerial,
+                cpu_id: cpuId
+            };
+
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = '<p>正在发送请求...</p>';
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    resultDiv.classList.add('success');
+                    resultDiv.innerHTML = `
+                        <h3>✅ 授权成功</h3>
+                        <p><strong>消息：</strong>${result.message}</p>
+                        <p><strong>状态：</strong>${result.status}</p>
+                    `;
+                } else {
+                    resultDiv.classList.add('error');
+                    resultDiv.innerHTML = `
+                        <h3>❌ 授权失败</h3>
+                        <p><strong>消息：</strong>${result.message}</p>
+                        <p><strong>状态：</strong>${result.status || '未知'}</p>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.classList.add('error');
+                resultDiv.innerHTML = `
+                    <h3>❌ 请求失败</h3>
+                    <p><strong>错误：</strong>${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
