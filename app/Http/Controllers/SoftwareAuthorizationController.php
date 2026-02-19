@@ -13,23 +13,16 @@ class SoftwareAuthorizationController extends Controller
     /**
      * 获取授权审批列表
      */
-    public function index()
+    public function index(Request $request)
     {
         $authorizations = SoftwareAuthorization::with('authorizationCode')->latest()->get();
         $authorizationCodes = AuthorizationCode::where('is_active', true)->get();
 
-        // 获取所有唯一的软件名称
-        $softwareNames = SoftwareAuthorization::distinct()
-            ->whereNotNull('software_name')
-            ->pluck('software_name')
-            ->unique()
-            ->sort()
-            ->values();
-
         return inertia('software-authorization/index', [
             'authorizations' => $authorizations,
             'authorization_codes' => $authorizationCodes,
-            'software_names' => $softwareNames,
+            'software' => $request->query('software'),
+            'code' => $request->query('code'),
         ]);
     }
 

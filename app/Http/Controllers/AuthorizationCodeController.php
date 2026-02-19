@@ -12,21 +12,18 @@ class AuthorizationCodeController extends Controller
     /**
      * 授权码管理页面
      */
-    public function index()
+    public function index(Request $request)
     {
         $codes = AuthorizationCode::latest()->get();
-
-        // 获取所有唯一的授权码值
-        $codeValues = AuthorizationCode::distinct()
-            ->whereNotNull('code')
-            ->pluck('code')
-            ->unique()
-            ->sort()
-            ->values();
+        $authorizations = SoftwareAuthorization::with('authorizationCode')
+            ->select('id', 'software_name', 'authorization_code_id')
+            ->get();
 
         return inertia('authorization-code/index', [
             'codes' => $codes,
-            'code_values' => $codeValues,
+            'authorizations' => $authorizations,
+            'code' => $request->query('code'),
+            'software' => $request->query('software'),
         ]);
     }
 

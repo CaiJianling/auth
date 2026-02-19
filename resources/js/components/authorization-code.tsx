@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { router } from '@inertiajs/react';
-import { Plus, Trash2, Edit2, Power, PowerOff, ChevronLeft, ChevronRight, Search, Check, X } from 'lucide-react';
+import { Plus, Trash2, Edit2, Power, PowerOff, ChevronLeft, ChevronRight, Search, Check, X, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     Table,
@@ -39,15 +39,20 @@ interface AuthorizationCode {
 
 interface AuthorizationCodeManagementProps {
     codes: AuthorizationCode[];
-    code_values: string[];
+    authorizations?: Array<{
+        software_name: string;
+        authorization_code_id: number;
+    }>;
+    code?: string;
+    software?: string;
 }
 
-export default function AuthorizationCodeManagement({ codes, code_values }: AuthorizationCodeManagementProps) {
+export default function AuthorizationCodeManagement({ codes, authorizations, code, software }: AuthorizationCodeManagementProps) {
     const { success } = useFlash();
     const [selectedCode, setSelectedCode] = useState<AuthorizationCode | null>(null);
     const [dialogType, setDialogType] = useState<'create' | 'edit' | 'delete' | null>(null);
     const [name, setName] = useState('');
-    const [code, setCode] = useState('');
+    const [codeInput, setCodeInput] = useState('');
     const [notes, setNotes] = useState('');
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
@@ -55,51 +60,23 @@ export default function AuthorizationCodeManagement({ codes, code_values }: Auth
 
     // 筛选条件
     const [filterName, setFilterName] = useState('');
-    const [filterCode, setFilterCode] = useState('');
+    const [filterCode, setFilterCode] = useState(code || '');
+    const [filterSoftwareName, setFilterSoftwareName] = useState(software || '');
     const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
     const [filterStartDate, setFilterStartDate] = useState('');
     const [filterEndDate, setFilterEndDate] = useState('');
 
-    // 从 URL 获取筛选参数
-    useEffect(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const softwareName = urlParams.get('software_name');
-
-        if (softwareName) {
-            setFilterName(softwareName);
-        }
-    }, []);
-
-    // 同步筛选条件到 URL
-    const updateURL = () => {
-        const url = new URL(window.location.href);
-        if (filterCode) {
-            url.searchParams.set('code', filterCode);
-        } else {
-            url.searchParams.delete('code');
-        }
-        if (filterName) {
-            url.searchParams.set('software_name', filterName);
-        } else {
-            url.searchParams.delete('software_name');
-        }
-        window.history.replaceState({}, '', url.toString());
-    };
-
-    useEffect(() => {
-        updateURL();
-    }, [filterCode, filterName]);
-
     // 搜索框状态
     const [filterNameSearchTerm, setFilterNameSearchTerm] = useState('');
+    const [filterSoftwareNameSearchTerm, setFilterSoftwareNameSearchTerm] = useState('');
 
     // 下拉框显示状态
     const [isFilterNameDropdownOpen, setIsFilterNameDropdownOpen] = useState(false);
-    const [isFilterCodeDropdownOpen, setIsFilterCodeDropdownOpen] = useState(false);
+    const [isFilterSoftwareNameDropdownOpen, setIsFilterSoftwareNameDropdownOpen] = useState(false);
 
     // 下拉框引用
     const filterNameDropdownRef = useRef<HTMLDivElement>(null);
-    const filterCodeDropdownRef = useRef<HTMLDivElement>(null);
+    const filterSoftwareNameDropdownRef = useRef<HTMLDivElement>(null);
 
     // 点击外部关闭下拉框
     useEffect(() => {
@@ -107,8 +84,8 @@ export default function AuthorizationCodeManagement({ codes, code_values }: Auth
             if (filterNameDropdownRef.current && !filterNameDropdownRef.current.contains(event.target as Node)) {
                 setIsFilterNameDropdownOpen(false);
             }
-            if (filterCodeDropdownRef.current && !filterCodeDropdownRef.current.contains(event.target as Node)) {
-                setIsFilterCodeDropdownOpen(false);
+            if (filterSoftwareNameDropdownRef.current && !filterSoftwareNameDropdownRef.current.contains(event.target as Node)) {
+                setIsFilterSoftwareNameDropdownOpen(false);
             }
         };
 
@@ -123,6 +100,13 @@ export default function AuthorizationCodeManagement({ codes, code_values }: Auth
         self.indexOf(name) === index && name.toLowerCase().includes(filterNameSearchTerm.toLowerCase())
     );
 
+    // 过滤软件名称列表
+    const filteredSoftwareNames = authorizations
+        ? authorizations.map(auth => auth.software_name).filter((name, index, self) =>
+            self.indexOf(name) === index && name.toLowerCase().includes(filterSoftwareNameSearchTerm.toLowerCase())
+        )
+        : [];
+
     // 分页
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
@@ -132,7 +116,7 @@ export default function AuthorizationCodeManagement({ codes, code_values }: Auth
             setSelectedCode(codeData);
             setDialogType('edit');
             setName(codeData.name);
-            setCode(codeData.code);
+            setCodeInput(codeData.code);
             setNotes(codeData.notes || '');
             setStartTime(codeData.start_time ? codeData.start_time.slice(0, 16) : '');
             setEndTime(codeData.end_time ? codeData.end_time.slice(0, 16) : '');
@@ -141,7 +125,7 @@ export default function AuthorizationCodeManagement({ codes, code_values }: Auth
             setSelectedCode(null);
             setDialogType('create');
             setName('');
-            setCode('');
+            setCodeInput('');
             setNotes('');
             setStartTime('');
             setEndTime('');
@@ -152,7 +136,7 @@ export default function AuthorizationCodeManagement({ codes, code_values }: Auth
     const handleDialogClose = () => {
         setDialogType(null);
         setName('');
-        setCode('');
+        setCodeInput('');
         setNotes('');
         setStartTime('');
         setEndTime('');
@@ -164,7 +148,7 @@ export default function AuthorizationCodeManagement({ codes, code_values }: Auth
         if (dialogType === 'create') {
             router.post('/authorization-code', {
                 name,
-                code: code || undefined,
+                code: codeInput || undefined,
                 notes,
                 start_time: startTime || undefined,
                 end_time: endTime || undefined,
@@ -176,7 +160,7 @@ export default function AuthorizationCodeManagement({ codes, code_values }: Auth
         } else if (dialogType === 'edit' && selectedCode) {
             router.put(`/authorization-code/${selectedCode.id}`, {
                 name,
-                code,
+                code: codeInput,
                 notes,
                 start_time: startTime || undefined,
                 end_time: endTime || undefined,
@@ -237,6 +221,15 @@ export default function AuthorizationCodeManagement({ codes, code_values }: Auth
         if (filterCode && !codeData.code.includes(filterCode)) {
             return false;
         }
+        // 根据软件名称筛选：只显示该软件使用的授权码
+        if (filterSoftwareName && authorizations) {
+            const authSoftwareNames = authorizations
+                .filter(auth => auth.authorization_code_id === codeData.id)
+                .map(auth => auth.software_name);
+            if (!authSoftwareNames.some(name => name.toLowerCase().includes(filterSoftwareName.toLowerCase()))) {
+                return false;
+            }
+        }
         if (filterStatus === 'active' && !codeData.is_active) {
             return false;
         }
@@ -275,15 +268,24 @@ export default function AuthorizationCodeManagement({ codes, code_values }: Auth
     const handleResetFilters = () => {
         setFilterName('');
         setFilterCode('');
+        setFilterSoftwareName('');
         setFilterStatus('all');
         setFilterStartDate('');
         setFilterEndDate('');
         setCurrentPage(1);
-        // 清除 URL 参数
-        const url = new URL(window.location.href);
-        url.searchParams.delete('code');
-        url.searchParams.delete('software_name');
-        window.history.replaceState({}, '', url.toString());
+    };
+
+    // 跳转到软件授权页面
+    const navigateToSoftwareAuthorization = () => {
+        const params = new URLSearchParams();
+        if (filterSoftwareName) {
+            params.append('software', filterSoftwareName);
+        }
+        if (filterCode) {
+            params.append('code', filterCode);
+        }
+        const queryString = params.toString();
+        window.location.href = `/software-authorization${queryString ? '?' + queryString : ''}`;
     };
 
     return (
@@ -306,6 +308,81 @@ export default function AuthorizationCodeManagement({ codes, code_values }: Auth
             <div className="rounded-lg border border-border bg-muted/50 p-4">
                 <h3 className="text-sm font-semibold mb-3">筛选条件</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="filterSoftwareName" className="text-sm">软件名称</Label>
+                        <div ref={filterSoftwareNameDropdownRef} className="relative">
+                            <div
+                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm cursor-pointer flex items-center justify-between"
+                                onClick={() => setIsFilterSoftwareNameDropdownOpen(!isFilterSoftwareNameDropdownOpen)}
+                            >
+                                <span className={filterSoftwareName ? '' : 'text-muted-foreground'}>
+                                    {filterSoftwareName || '全部软件名称'}
+                                </span>
+                                {filterSoftwareName && (
+                                    <X
+                                        className="h-4 w-4 text-muted-foreground hover:text-foreground"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setFilterSoftwareName('');
+                                            setCurrentPage(1);
+                                        }}
+                                    />
+                                )}
+                            </div>
+                            {isFilterSoftwareNameDropdownOpen && (
+                                <div className="absolute z-50 mt-1 w-full rounded-md border border-input bg-background shadow-lg">
+                                    <div className="border-b border-border p-2">
+                                        <div className="relative">
+                                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                            <Input
+                                                placeholder="搜索软件名称..."
+                                                value={filterSoftwareNameSearchTerm}
+                                                onChange={(e) => setFilterSoftwareNameSearchTerm(e.target.value)}
+                                                className="pl-9"
+                                                autoFocus
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="max-h-60 overflow-y-auto">
+                                        <div
+                                            className="px-3 py-2 hover:bg-muted cursor-pointer flex items-center gap-2"
+                                            onClick={() => {
+                                                setFilterSoftwareName('');
+                                                setCurrentPage(1);
+                                                setIsFilterSoftwareNameDropdownOpen(false);
+                                                setFilterSoftwareNameSearchTerm('');
+                                            }}
+                                        >
+                                            {!filterSoftwareName && <Check className="h-4 w-4" />}
+                                            <span className={!filterSoftwareName ? 'font-medium' : ''}>全部软件名称</span>
+                                        </div>
+                                        {filteredSoftwareNames.map((name) => (
+                                            <div
+                                                key={name}
+                                                className="px-3 py-2 hover:bg-muted cursor-pointer flex items-center gap-2"
+                                                onClick={() => {
+                                                    setFilterSoftwareName(name);
+                                                    setCurrentPage(1);
+                                                    setIsFilterSoftwareNameDropdownOpen(false);
+                                                    setFilterSoftwareNameSearchTerm('');
+                                                }}
+                                            >
+                                                {filterSoftwareName === name && <Check className="h-4 w-4" />}
+                                                <span className={filterSoftwareName === name ? 'font-medium' : ''}>
+                                                    {name}
+                                                </span>
+                                            </div>
+                                        ))}
+                                        {filteredSoftwareNames.length === 0 && (
+                                            <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+                                                未找到匹配的软件名称
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                     <div className="space-y-2">
                         <Label htmlFor="filterName" className="text-sm">授权码名称</Label>
                         <div ref={filterNameDropdownRef} className="relative">
@@ -383,59 +460,55 @@ export default function AuthorizationCodeManagement({ codes, code_values }: Auth
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="filterCode" className="text-sm">授权码</Label>
-                        <div ref={filterCodeDropdownRef} className="relative">
-                            <div
-                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm cursor-pointer flex items-center justify-between"
-                                onClick={() => setIsFilterCodeDropdownOpen(!isFilterCodeDropdownOpen)}
-                            >
-                                <span className={filterCode ? '' : 'text-muted-foreground'}>
-                                    {filterCode || '全部授权码'}
-                                </span>
-                                {filterCode && (
-                                    <X
-                                        className="h-4 w-4 text-muted-foreground hover:text-foreground"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setFilterCode('');
-                                            setCurrentPage(1);
-                                        }}
-                                    />
-                                )}
-                            </div>
-                            {isFilterCodeDropdownOpen && (
-                                <div className="absolute z-50 mt-1 w-full rounded-md border border-input bg-background shadow-lg">
-                                    <div className="max-h-60 overflow-y-auto">
-                                        <div
-                                            className="px-3 py-2 hover:bg-muted cursor-pointer flex items-center gap-2"
-                                            onClick={() => {
-                                                setFilterCode('');
-                                                setCurrentPage(1);
-                                                setIsFilterCodeDropdownOpen(false);
-                                            }}
-                                        >
-                                            {!filterCode && <Check className="h-4 w-4" />}
-                                            <span className={!filterCode ? 'font-medium' : ''}>全部授权码</span>
-                                        </div>
-                                        {code_values.map((code) => (
-                                            <div
-                                                key={code}
-                                                className="px-3 py-2 hover:bg-muted cursor-pointer flex items-center gap-2"
-                                                onClick={() => {
-                                                    setFilterCode(code);
-                                                    setCurrentPage(1);
-                                                    setIsFilterCodeDropdownOpen(false);
-                                                }}
-                                            >
-                                                {filterCode === code && <Check className="h-4 w-4" />}
-                                                <span className={filterCode === code ? 'font-medium' : ''}>
-                                                    {code}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                        <Input
+                            id="filterCode"
+                            placeholder="输入授权码"
+                            value={filterCode}
+                            onChange={(e) => {
+                                setFilterCode(e.target.value);
+                                setCurrentPage(1);
+                            }}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="filterStatus" className="text-sm">状态</Label>
+                        <select
+                            id="filterStatus"
+                            value={filterStatus}
+                            onChange={(e) => {
+                                setFilterStatus(e.target.value as 'all' | 'active' | 'inactive');
+                                setCurrentPage(1);
+                            }}
+                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        >
+                            <option value="all">全部状态</option>
+                            <option value="active">已启用</option>
+                            <option value="inactive">已禁用</option>
+                        </select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="filterStartDate" className="text-sm">创建开始日期</Label>
+                        <Input
+                            id="filterStartDate"
+                            type="date"
+                            value={filterStartDate}
+                            onChange={(e) => {
+                                setFilterStartDate(e.target.value);
+                                setCurrentPage(1);
+                            }}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="filterEndDate" className="text-sm">创建结束日期</Label>
+                        <Input
+                            id="filterEndDate"
+                            type="date"
+                            value={filterEndDate}
+                            onChange={(e) => {
+                                setFilterEndDate(e.target.value);
+                                setCurrentPage(1);
+                            }}
+                        />
                     </div>
                     <div className="space-y-2">
                         <Label className="text-sm">操作</Label>
@@ -445,6 +518,15 @@ export default function AuthorizationCodeManagement({ codes, code_values }: Auth
                             </Button>
                         </div>
                     </div>
+                    {(filterSoftwareName || filterCode) && (
+                        <div className="space-y-2">
+                            <Label className="text-sm">关联筛选</Label>
+                            <Button onClick={navigateToSoftwareAuthorization} variant="default" className="flex items-center gap-2">
+                                <ArrowLeft className="h-4 w-4" />
+                                查看软件授权
+                            </Button>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -596,8 +678,8 @@ export default function AuthorizationCodeManagement({ codes, code_values }: Auth
                             <Input
                                 id="code"
                                 placeholder="留空自动生成32位授权码"
-                                value={code}
-                                onChange={(e) => setCode(e.target.value)}
+                                value={codeInput}
+                                onChange={(e) => setCodeInput(e.target.value)}
                             />
                         </div>
                         <div className="space-y-2">
@@ -665,8 +747,8 @@ export default function AuthorizationCodeManagement({ codes, code_values }: Auth
                             <Label htmlFor="editCode">授权码</Label>
                             <Input
                                 id="editCode"
-                                value={code}
-                                onChange={(e) => setCode(e.target.value)}
+                                value={codeInput}
+                                onChange={(e) => setCodeInput(e.target.value)}
                             />
                         </div>
                         <div className="space-y-2">

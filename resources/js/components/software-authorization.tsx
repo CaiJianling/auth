@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { router } from '@inertiajs/react';
-import { Shield, Trash2, Clock, History, Edit2, ChevronLeft, ChevronRight, Search, Check, X } from 'lucide-react';
+import { Shield, Trash2, Clock, History, Edit2, ChevronLeft, ChevronRight, Search, Check, X, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     Table,
@@ -39,10 +39,10 @@ interface AuthorizationCode {
 interface SoftwareAuthorizationProps {
     authorizations: AuthorizationType[];
     authorization_codes: AuthorizationCode[];
-    software_names: string[];
+    software?: string;
 }
 
-export function SoftwareAuthorization({ authorizations, authorization_codes, software_names }: SoftwareAuthorizationProps) {
+export function SoftwareAuthorization({ authorizations, authorization_codes, software }: SoftwareAuthorizationProps) {
     const { success } = useFlash();
     const [selectedAuth, setSelectedAuth] = useState<AuthorizationType | null>(null);
     const [dialogType, setDialogType] = useState<'delete' | 'edit' | 'history' | null>(null);
@@ -59,45 +59,11 @@ export function SoftwareAuthorization({ authorizations, authorization_codes, sof
     const [filterEndDate, setFilterEndDate] = useState('');
 
     // 已批准页面筛选条件
-    const [filterSoftwareName, setFilterSoftwareName] = useState('');
+    const [filterSoftwareName, setFilterSoftwareName] = useState(software || '');
     const [filterAuthorizationCode, setFilterAuthorizationCode] = useState<number | null>(null);
     const [filterLastAccessIp, setFilterLastAccessIp] = useState('');
     const [filterAuthorizedStartDate, setFilterAuthorizedStartDate] = useState('');
     const [filterAuthorizedEndDate, setFilterAuthorizedEndDate] = useState('');
-
-    // 从 URL 获取筛选参数
-    useEffect(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const authCodeId = urlParams.get('auth_code_id');
-        const softwareName = urlParams.get('software_name');
-
-        if (authCodeId) {
-            setFilterAuthorizationCode(parseInt(authCodeId));
-        }
-        if (softwareName) {
-            setFilterSoftwareName(softwareName);
-        }
-    }, []);
-
-    // 同步筛选条件到 URL
-    const updateURL = () => {
-        const url = new URL(window.location.href);
-        if (filterAuthorizationCode) {
-            url.searchParams.set('auth_code_id', filterAuthorizationCode.toString());
-        } else {
-            url.searchParams.delete('auth_code_id');
-        }
-        if (filterSoftwareName) {
-            url.searchParams.set('software_name', filterSoftwareName);
-        } else {
-            url.searchParams.delete('software_name');
-        }
-        window.history.replaceState({}, '', url.toString());
-    };
-
-    useEffect(() => {
-        updateURL();
-    }, [filterAuthorizationCode, filterSoftwareName]);
 
     const handleDialogClose = () => {
         setDialogType(null);
@@ -292,11 +258,6 @@ export function SoftwareAuthorization({ authorizations, authorization_codes, sof
         setFilterAuthorizedStartDate('');
         setFilterAuthorizedEndDate('');
         setCurrentPage(1);
-        // 清除 URL 参数
-        const url = new URL(window.location.href);
-        url.searchParams.delete('auth_code_id');
-        url.searchParams.delete('software_name');
-        window.history.replaceState({}, '', url.toString());
     };
 
     // 格式化时间显示
@@ -323,14 +284,17 @@ export function SoftwareAuthorization({ authorizations, authorization_codes, sof
     // 搜索框状态
     const [filterAuthCodeSearchTerm, setFilterAuthCodeSearchTerm] = useState('');
     const [editAuthCodeSearchTerm, setEditAuthCodeSearchTerm] = useState('');
+    const [filterSoftwareNameSearchTerm, setFilterSoftwareNameSearchTerm] = useState('');
 
     // 下拉框显示状态
     const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
     const [isEditDropdownOpen, setIsEditDropdownOpen] = useState(false);
+    const [isFilterSoftwareNameDropdownOpen, setIsFilterSoftwareNameDropdownOpen] = useState(false);
 
     // 下拉框引用
     const filterDropdownRef = useRef<HTMLDivElement>(null);
     const editDropdownRef = useRef<HTMLDivElement>(null);
+    const filterSoftwareNameDropdownRef = useRef<HTMLDivElement>(null);
 
     // 点击外部关闭下拉框
     useEffect(() => {
@@ -340,6 +304,9 @@ export function SoftwareAuthorization({ authorizations, authorization_codes, sof
             }
             if (editDropdownRef.current && !editDropdownRef.current.contains(event.target as Node)) {
                 setIsEditDropdownOpen(false);
+            }
+            if (filterSoftwareNameDropdownRef.current && !filterSoftwareNameDropdownRef.current.contains(event.target as Node)) {
+                setIsFilterSoftwareNameDropdownOpen(false);
             }
         };
 
@@ -360,11 +327,34 @@ export function SoftwareAuthorization({ authorizations, authorization_codes, sof
         code.code.toLowerCase().includes(editAuthCodeSearchTerm.toLowerCase())
     );
 
+    // 过滤软件名称列表
+    const filteredSoftwareNames = authorizations
+        .map(auth => auth.software_name)
+        .filter((name, index, self) =>
+            self.indexOf(name) === index && name.toLowerCase().includes(filterSoftwareNameSearchTerm.toLowerCase())
+        );
+
     // 获取选中的授权码信息
     const getSelectedAuthCodeName = (id: number | null) => {
         if (!id) return '全部授权码';
         const code = authorization_codes.find(c => c.id === id);
         return code ? `${code.name} - ${code.code}` : '';
+    };
+
+    // 跳转到授权码页面
+    const navigateToAuthorizationCode = () => {
+        const params = new URLSearchParams();
+        if (filterSoftwareName) {
+            params.append('software', filterSoftwareName);
+        }
+        if (filterAuthorizationCode) {
+            const selectedCode = authorization_codes.find(c => c.id === filterAuthorizationCode);
+            if (selectedCode) {
+                params.append('code', selectedCode.code);
+            }
+        }
+        const queryString = params.toString();
+        window.location.href = `/authorization-code${queryString ? '?' + queryString : ''}`;
     };
 
     return (
@@ -381,15 +371,78 @@ export function SoftwareAuthorization({ authorizations, authorization_codes, sof
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="filterSoftwareName" className="text-sm">软件名称</Label>
-                        <Input
-                            id="filterSoftwareName"
-                            placeholder="输入软件名称"
-                            value={filterSoftwareName}
-                            onChange={(e) => {
-                                setFilterSoftwareName(e.target.value);
-                                setCurrentPage(1);
-                            }}
-                        />
+                        <div ref={filterSoftwareNameDropdownRef} className="relative">
+                            <div
+                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm cursor-pointer flex items-center justify-between"
+                                onClick={() => setIsFilterSoftwareNameDropdownOpen(!isFilterSoftwareNameDropdownOpen)}
+                            >
+                                <span className={filterSoftwareName ? '' : 'text-muted-foreground'}>
+                                    {filterSoftwareName || '全部软件名称'}
+                                </span>
+                                {filterSoftwareName && (
+                                    <X
+                                        className="h-4 w-4 text-muted-foreground hover:text-foreground"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setFilterSoftwareName('');
+                                            setCurrentPage(1);
+                                        }}
+                                    />
+                                )}
+                            </div>
+                            {isFilterSoftwareNameDropdownOpen && (
+                                <div className="absolute z-50 mt-1 w-full rounded-md border border-input bg-background shadow-lg">
+                                    <div className="border-b border-border p-2">
+                                        <div className="relative">
+                                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                            <Input
+                                                placeholder="搜索软件名称..."
+                                                value={filterSoftwareNameSearchTerm}
+                                                onChange={(e) => setFilterSoftwareNameSearchTerm(e.target.value)}
+                                                className="pl-9"
+                                                autoFocus
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="max-h-60 overflow-y-auto">
+                                        <div
+                                            className="px-3 py-2 hover:bg-muted cursor-pointer flex items-center gap-2"
+                                            onClick={() => {
+                                                setFilterSoftwareName('');
+                                                setCurrentPage(1);
+                                                setIsFilterSoftwareNameDropdownOpen(false);
+                                                setFilterSoftwareNameSearchTerm('');
+                                            }}
+                                        >
+                                            {!filterSoftwareName && <Check className="h-4 w-4" />}
+                                            <span className={!filterSoftwareName ? 'font-medium' : ''}>全部软件名称</span>
+                                        </div>
+                                        {filteredSoftwareNames.map((name) => (
+                                            <div
+                                                key={name}
+                                                className="px-3 py-2 hover:bg-muted cursor-pointer flex items-center gap-2"
+                                                onClick={() => {
+                                                    setFilterSoftwareName(name);
+                                                    setCurrentPage(1);
+                                                    setIsFilterSoftwareNameDropdownOpen(false);
+                                                    setFilterSoftwareNameSearchTerm('');
+                                                }}
+                                            >
+                                                {filterSoftwareName === name && <Check className="h-4 w-4" />}
+                                                <span className={filterSoftwareName === name ? 'font-medium' : ''}>
+                                                    {name}
+                                                </span>
+                                            </div>
+                                        ))}
+                                        {filteredSoftwareNames.length === 0 && (
+                                            <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+                                                未找到匹配的软件名称
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="filterAuthorizationCode" className="text-sm">授权码</Label>
@@ -467,6 +520,42 @@ export function SoftwareAuthorization({ authorizations, authorization_codes, sof
                         </div>
                     </div>
                     <div className="space-y-2">
+                        <Label htmlFor="filterLastAccessIp" className="text-sm">IP地址</Label>
+                        <Input
+                            id="filterLastAccessIp"
+                            placeholder="输入IP地址"
+                            value={filterLastAccessIp}
+                            onChange={(e) => {
+                                setFilterLastAccessIp(e.target.value);
+                                setCurrentPage(1);
+                            }}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="filterAuthorizedStartDate" className="text-sm">授权开始日期</Label>
+                        <Input
+                            id="filterAuthorizedStartDate"
+                            type="date"
+                            value={filterAuthorizedStartDate}
+                            onChange={(e) => {
+                                setFilterAuthorizedStartDate(e.target.value);
+                                setCurrentPage(1);
+                            }}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="filterAuthorizedEndDate" className="text-sm">授权结束日期</Label>
+                        <Input
+                            id="filterAuthorizedEndDate"
+                            type="date"
+                            value={filterAuthorizedEndDate}
+                            onChange={(e) => {
+                                setFilterAuthorizedEndDate(e.target.value);
+                                setCurrentPage(1);
+                            }}
+                        />
+                    </div>
+                    <div className="space-y-2">
                         <Label className="text-sm">操作</Label>
                         <div className="flex gap-2">
                             <Button onClick={handleResetFilters} variant="outline" className="flex-1">
@@ -474,6 +563,15 @@ export function SoftwareAuthorization({ authorizations, authorization_codes, sof
                             </Button>
                         </div>
                     </div>
+                    {(filterSoftwareName || filterAuthorizationCode) && (
+                        <div className="space-y-2">
+                            <Label className="text-sm">关联筛选</Label>
+                            <Button onClick={navigateToAuthorizationCode} variant="default" className="flex items-center gap-2">
+                                查看授权码
+                                <ArrowRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    )}
                 </div>
             </div>
 
