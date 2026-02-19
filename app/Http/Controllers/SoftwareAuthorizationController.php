@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\SoftwareAuthorization;
 use App\Models\AuthorizationCode;
+use App\Models\Software;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -17,9 +18,18 @@ class SoftwareAuthorizationController extends Controller
         $authorizations = SoftwareAuthorization::with('authorizationCode')->latest()->get();
         $authorizationCodes = AuthorizationCode::where('is_active', true)->get();
 
+        // 获取所有唯一的软件名称
+        $softwareNames = SoftwareAuthorization::distinct()
+            ->whereNotNull('software_name')
+            ->pluck('software_name')
+            ->unique()
+            ->sort()
+            ->values();
+
         return inertia('software-authorization/index', [
             'authorizations' => $authorizations,
             'authorization_codes' => $authorizationCodes,
+            'software_names' => $softwareNames,
         ]);
     }
 
@@ -38,6 +48,41 @@ class SoftwareAuthorizationController extends Controller
         ]);
 
         $ip = $request->ip();
+
+        // 验证软件是否存在且启用
+        $software = Software::where('name', $validated['software_name'])
+            ->where('is_active', true)
+            ->first();
+
+        if (!$software) {
+            return response()->json([
+                'success' => false,
+                'message' => '软件不存在或已禁用',
+                'status' => 'invalid_software',
+            ], 400);
+        }
+
+        // 验证是否存在启用且未过期的授权码
+        $validAuthCode = AuthorizationCode::where('is_active', true)
+            ->where(function ($query) {
+                $now = now();
+                $query->whereNull('start_time')
+                    ->orWhere('start_time', '<=', $now);
+            })
+            ->where(function ($query) {
+                $now = now();
+                $query->whereNull('end_time')
+                    ->orWhere('end_time', '>=', $now);
+            })
+            ->first();
+
+        if (!$validAuthCode) {
+            return response()->json([
+                'success' => false,
+                'message' => '没有可用的授权码',
+                'status' => 'no_auth_code',
+            ], 400);
+        }
 
         // 检查是否已有授权记录（完全匹配）
         $existingAuth = SoftwareAuthorization::where('bios_uuid', $validated['bios_uuid'])
@@ -214,10 +259,27 @@ class SoftwareAuthorizationController extends Controller
             ];
         }
 
+        // 记录授权时间范围变更
+        $timeChanges = null;
+        if ($authorization->start_time != $authCode->start_time || $authorization->end_time != $authCode->end_time) {
+            $timeChanges = [
+                'before' => [
+                    'start_time' => $authorization->start_time ? $authorization->start_time->format('Y-m-d H:i:s') : null,
+                    'end_time' => $authorization->end_time ? $authorization->end_time->format('Y-m-d H:i:s') : null,
+                ],
+                'after' => [
+                    'start_time' => $authCode->start_time ? $authCode->start_time->format('Y-m-d H:i:s') : null,
+                    'end_time' => $authCode->end_time ? $authCode->end_time->format('Y-m-d H:i:s') : null,
+                ],
+            ];
+        }
+
         $authorization->update([
             'status' => 'approved',
             'authorized_at' => now(),
             'authorization_code_id' => $authCode->id,
+            'start_time' => $authCode->start_time,
+            'end_time' => $authCode->end_time,
             'notes' => $request->input('notes'),
         ]);
 
@@ -226,6 +288,16 @@ class SoftwareAuthorizationController extends Controller
             $authorization->accessLogs()->create([
                 'access_type' => 'code_change',
                 'changes' => $codeChanges,
+                'ip_address' => $request->ip(),
+                'is_expired' => false,
+            ]);
+        }
+
+        // 如果授权时间范围有变更，记录日志
+        if ($timeChanges) {
+            $authorization->accessLogs()->create([
+                'access_type' => 'time_change',
+                'changes' => $timeChanges,
                 'ip_address' => $request->ip(),
                 'is_expired' => false,
             ]);
@@ -284,8 +356,25 @@ class SoftwareAuthorizationController extends Controller
             ],
         ];
 
+        // 记录授权时间范围变更
+        $timeChanges = null;
+        if ($authorization->start_time != $authCode->start_time || $authorization->end_time != $authCode->end_time) {
+            $timeChanges = [
+                'before' => [
+                    'start_time' => $authorization->start_time ? $authorization->start_time->format('Y-m-d H:i:s') : null,
+                    'end_time' => $authorization->end_time ? $authorization->end_time->format('Y-m-d H:i:s') : null,
+                ],
+                'after' => [
+                    'start_time' => $authCode->start_time ? $authCode->start_time->format('Y-m-d H:i:s') : null,
+                    'end_time' => $authCode->end_time ? $authCode->end_time->format('Y-m-d H:i:s') : null,
+                ],
+            ];
+        }
+
         $authorization->update([
             'authorization_code_id' => $authCode->id,
+            'start_time' => $authCode->start_time,
+            'end_time' => $authCode->end_time,
         ]);
 
         // 记录授权码变更日志
@@ -295,6 +384,16 @@ class SoftwareAuthorizationController extends Controller
             'ip_address' => $request->ip(),
             'is_expired' => false,
         ]);
+
+        // 如果授权时间范围有变更，记录日志
+        if ($timeChanges) {
+            $authorization->accessLogs()->create([
+                'access_type' => 'time_change',
+                'changes' => $timeChanges,
+                'ip_address' => $request->ip(),
+                'is_expired' => false,
+            ]);
+        }
 
         return back()->with('success', '授权记录已更新');
     }
@@ -313,6 +412,19 @@ class SoftwareAuthorizationController extends Controller
             'cpu_id' => 'required|string|max:255',
         ]);
 
+        // 验证软件是否存在且启用
+        $software = Software::where('name', $validated['software_name'])
+            ->where('is_active', true)
+            ->first();
+
+        if (!$software) {
+            return response()->json([
+                'success' => false,
+                'message' => '软件不存在或已禁用',
+                'status' => 'invalid_software',
+            ], 400);
+        }
+
         // 从请求中获取已验证的授权码（由中间件验证）
         $authCode = $request->attributes->get('auth_code');
 
@@ -320,6 +432,15 @@ class SoftwareAuthorizationController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => '授权验证失败',
+            ], 401);
+        }
+
+        // 验证授权码是否有效
+        if (!$authCode->isValid()) {
+            return response()->json([
+                'success' => false,
+                'message' => '授权码无效或已过期',
+                'status' => 'invalid_code',
             ], 401);
         }
 

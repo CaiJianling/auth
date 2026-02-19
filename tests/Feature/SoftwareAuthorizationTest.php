@@ -1,10 +1,25 @@
 <?php
 
 use App\Models\SoftwareAuthorization;
+use App\Models\Software;
+use App\Models\AuthorizationCode;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
 test('授权接口可以正常接收请求', function () {
+    // 创建启用状态的软件
+    $software = Software::factory()->create([
+        'name' => '测试软件',
+        'is_active' => true,
+    ]);
+
+    // 创建启用且未过期的授权码
+    $authCode = AuthorizationCode::factory()->create([
+        'is_active' => true,
+        'start_time' => null,
+        'end_time' => null,
+    ]);
+
     $response = $this->postJson('/api/software/authorize', [
         'software_name' => '测试软件',
         'software_version' => '1.0.0',
@@ -28,12 +43,26 @@ test('授权接口可以正常接收请求', function () {
 });
 
 test('已批准的授权可以直接通过验证', function () {
+    // 创建启用状态的软件
+    $software = Software::factory()->create([
+        'name' => '测试软件',
+        'is_active' => true,
+    ]);
+
+    // 创建启用且未过期的授权码
+    $authCode = AuthorizationCode::factory()->create([
+        'is_active' => true,
+        'start_time' => null,
+        'end_time' => null,
+    ]);
+
     $authorization = SoftwareAuthorization::factory()->create([
         'status' => 'approved',
         'software_name' => '测试软件',
         'bios_uuid' => 'test-uuid-12345',
         'motherboard_serial' => 'MB-123456',
         'cpu_id' => 'CPU-789012',
+        'authorization_code_id' => $authCode->id,
     ]);
 
     $response = $this->postJson('/api/software/authorize', [
@@ -54,6 +83,19 @@ test('已批准的授权可以直接通过验证', function () {
 });
 
 test('已拒绝的授权不能通过验证', function () {
+    // 创建启用状态的软件
+    $software = Software::factory()->create([
+        'name' => '测试软件',
+        'is_active' => true,
+    ]);
+
+    // 创建启用且未过期的授权码
+    $authCode = AuthorizationCode::factory()->create([
+        'is_active' => true,
+        'start_time' => null,
+        'end_time' => null,
+    ]);
+
     $authorization = SoftwareAuthorization::factory()->create([
         'status' => 'rejected',
         'bios_uuid' => 'test-uuid-12345',
@@ -79,6 +121,19 @@ test('已拒绝的授权不能通过验证', function () {
 });
 
 test('待审核的授权返回待审核状态', function () {
+    // 创建启用状态的软件
+    $software = Software::factory()->create([
+        'name' => '测试软件',
+        'is_active' => true,
+    ]);
+
+    // 创建启用且未过期的授权码
+    $authCode = AuthorizationCode::factory()->create([
+        'is_active' => true,
+        'start_time' => null,
+        'end_time' => null,
+    ]);
+
     $authorization = SoftwareAuthorization::factory()->create([
         'status' => 'pending',
         'bios_uuid' => 'test-uuid-12345',
@@ -119,9 +174,18 @@ test('认证用户可以访问授权管理页面', function () {
 
 test('认证用户可以批准授权', function () {
     $user = User::factory()->create();
+
+    // 创建启用且未过期的授权码
+    $authCode = AuthorizationCode::factory()->create([
+        'is_active' => true,
+        'start_time' => null,
+        'end_time' => null,
+    ]);
+
     $authorization = SoftwareAuthorization::factory()->create(['status' => 'pending']);
 
     $response = $this->actingAs($user)->post("/software-authorization/{$authorization->id}/approve", [
+        'authorization_code_id' => $authCode->id,
         'notes' => '授权批准',
     ]);
 
@@ -162,6 +226,19 @@ test('认证用户可以删除授权记录', function () {
 });
 
 test('授权时间范围内可以正常访问', function () {
+    // 创建启用状态的软件
+    $software = Software::factory()->create([
+        'name' => '测试软件',
+        'is_active' => true,
+    ]);
+
+    // 创建启用且未过期的授权码
+    $authCode = AuthorizationCode::factory()->create([
+        'is_active' => true,
+        'start_time' => null,
+        'end_time' => null,
+    ]);
+
     $authorization = SoftwareAuthorization::factory()->create([
         'status' => 'approved',
         'start_time' => now()->subDay(),
@@ -169,6 +246,7 @@ test('授权时间范围内可以正常访问', function () {
         'bios_uuid' => 'test-uuid-12345',
         'motherboard_serial' => 'MB-123456',
         'cpu_id' => 'CPU-789012',
+        'authorization_code_id' => $authCode->id,
     ]);
 
     $response = $this->postJson('/api/software/authorize', [
@@ -189,6 +267,19 @@ test('授权时间范围内可以正常访问', function () {
 });
 
 test('授权时间之前访问会失败', function () {
+    // 创建启用状态的软件
+    $software = Software::factory()->create([
+        'name' => '测试软件',
+        'is_active' => true,
+    ]);
+
+    // 创建启用且未过期的授权码
+    $authCode = AuthorizationCode::factory()->create([
+        'is_active' => true,
+        'start_time' => null,
+        'end_time' => null,
+    ]);
+
     $authorization = SoftwareAuthorization::factory()->create([
         'status' => 'approved',
         'start_time' => now()->addDay(),
@@ -196,6 +287,7 @@ test('授权时间之前访问会失败', function () {
         'bios_uuid' => 'test-uuid-12345',
         'motherboard_serial' => 'MB-123456',
         'cpu_id' => 'CPU-789012',
+        'authorization_code_id' => $authCode->id,
     ]);
 
     $response = $this->postJson('/api/software/authorize', [
@@ -222,6 +314,19 @@ test('授权时间之前访问会失败', function () {
 });
 
 test('授权时间之后访问会失败', function () {
+    // 创建启用状态的软件
+    $software = Software::factory()->create([
+        'name' => '测试软件',
+        'is_active' => true,
+    ]);
+
+    // 创建启用且未过期的授权码
+    $authCode = AuthorizationCode::factory()->create([
+        'is_active' => true,
+        'start_time' => null,
+        'end_time' => null,
+    ]);
+
     $authorization = SoftwareAuthorization::factory()->create([
         'status' => 'approved',
         'start_time' => now()->subDays(2),
@@ -229,6 +334,7 @@ test('授权时间之后访问会失败', function () {
         'bios_uuid' => 'test-uuid-12345',
         'motherboard_serial' => 'MB-123456',
         'cpu_id' => 'CPU-789012',
+        'authorization_code_id' => $authCode->id,
     ]);
 
     $response = $this->postJson('/api/software/authorize', [
@@ -255,6 +361,19 @@ test('授权时间之后访问会失败', function () {
 });
 
 test('没有时间限制的授权永久有效', function () {
+    // 创建启用状态的软件
+    $software = Software::factory()->create([
+        'name' => '测试软件',
+        'is_active' => true,
+    ]);
+
+    // 创建启用且未过期的授权码
+    $authCode = AuthorizationCode::factory()->create([
+        'is_active' => true,
+        'start_time' => null,
+        'end_time' => null,
+    ]);
+
     $authorization = SoftwareAuthorization::factory()->create([
         'status' => 'approved',
         'start_time' => null,
@@ -262,6 +381,7 @@ test('没有时间限制的授权永久有效', function () {
         'bios_uuid' => 'test-uuid-12345',
         'motherboard_serial' => 'MB-123456',
         'cpu_id' => 'CPU-789012',
+        'authorization_code_id' => $authCode->id,
     ]);
 
     $response = $this->postJson('/api/software/authorize', [
@@ -278,6 +398,68 @@ test('没有时间限制的授权永久有效', function () {
         'success' => true,
         'message' => '授权成功',
         'status' => 'approved',
+    ]);
+});
+
+test('软件不存在或已禁用时无法授权', function () {
+    // 不创建软件或创建禁用状态的软件
+    $software = Software::factory()->create([
+        'name' => '已禁用软件',
+        'is_active' => false,
+    ]);
+
+    // 创建启用且未过期的授权码
+    $authCode = AuthorizationCode::factory()->create([
+        'is_active' => true,
+        'start_time' => null,
+        'end_time' => null,
+    ]);
+
+    $response = $this->postJson('/api/software/authorize', [
+        'software_name' => '已禁用软件',
+        'software_version' => '1.0.0',
+        'os_version' => 'Windows 11',
+        'bios_uuid' => 'test-uuid-12345',
+        'motherboard_serial' => 'MB-123456',
+        'cpu_id' => 'CPU-789012',
+    ]);
+
+    $response->assertStatus(400);
+    $response->assertJson([
+        'success' => false,
+        'message' => '软件不存在或已禁用',
+        'status' => 'invalid_software',
+    ]);
+});
+
+test('没有可用授权码时无法授权', function () {
+    // 创建启用状态的软件
+    $software = Software::factory()->create([
+        'name' => '测试软件',
+        'is_active' => true,
+    ]);
+
+    // 不创建授权码或只创建过期的授权码
+    $authCode = AuthorizationCode::factory()->create([
+        'is_active' => true,
+        'start_time' => now()->subDays(2),
+        'end_time' => now()->subDay(),
+    ]);
+
+    $response = $this->postJson('/api/software/authorize', [
+        'software_name' => '测试软件',
+        'software_version' => '1.0.0',
+        'os_version' => 'Windows 11',
+        'bios_uuid' => 'test-uuid-12345',
+        'motherboard_serial' => 'MB-123456',
+        'cpu_id' => 'CPU-789012',
+    ]);
+
+    $response->assertStatus(400);
+    $response->assertJson([
+        'success' => false,
+        'message' => '没有可用的授权码',
+        'status' => 'no_auth_code',
     ]);
 });
 

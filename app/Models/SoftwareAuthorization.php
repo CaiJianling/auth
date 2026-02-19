@@ -22,10 +22,14 @@ class SoftwareAuthorization extends Model
         'authorized_at',
         'notes',
         'authorization_code_id',
+        'start_time',
+        'end_time',
     ];
 
     protected $casts = [
         'authorized_at' => 'datetime',
+        'start_time' => 'datetime',
+        'end_time' => 'datetime',
     ];
 
     public function isPending(): bool
@@ -89,6 +93,18 @@ class SoftwareAuthorization extends Model
      */
     public function isWithinAuthorizationPeriod(): bool
     {
+        // 优先使用授权记录自身的时间范围
+        $now = now();
+
+        if ($this->start_time && $now->lt($this->start_time)) {
+            return false;
+        }
+
+        if ($this->end_time && $now->gt($this->end_time)) {
+            return false;
+        }
+
+        // 如果授权记录没有设置时间范围，则检查关联的授权码
         if (!$this->authorizationCode) {
             return false;
         }

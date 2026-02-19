@@ -12,13 +12,14 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 interface PageProps {
     codes: any[];
+    code_values: string[];
 }
 
-export default function Index({ codes }: PageProps) {
+export default function Index({ codes, code_values }: PageProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="授权码管理" />
-            <AuthorizationCodeManagement codes={codes} />
+            <AuthorizationCodeManagement codes={codes} code_values={code_values} />
         </AppLayout>
     );
 }

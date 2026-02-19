@@ -15,8 +15,18 @@ class AuthorizationCodeController extends Controller
     public function index()
     {
         $codes = AuthorizationCode::latest()->get();
+
+        // 获取所有唯一的授权码值
+        $codeValues = AuthorizationCode::distinct()
+            ->whereNotNull('code')
+            ->pluck('code')
+            ->unique()
+            ->sort()
+            ->values();
+
         return inertia('authorization-code/index', [
             'codes' => $codes,
+            'code_values' => $codeValues,
         ]);
     }
 

@@ -320,11 +320,15 @@ auth/
 
 **接口地址**：`POST /api/software/authorize`
 
+**验证规则**：
+- `software_name` 必须在软件管理中存在且处于启用状态
+- 必须存在至少一个启用且未过期的授权码
+
 **请求参数**：
 
 | 参数名 | 类型 | 必填 | 说明 |
 |--------|------|------|------|
-| software_name | string | 是 | 软件名称 |
+| software_name | string | 是 | 软件名称（必须在软件管理中存在且启用） |
 | software_version | string | 是 | 软件版本号 |
 | os_version | string | 是 | 操作系统版本 |
 | bios_uuid | string | 是 | 主板 BIOS UUID |
@@ -341,16 +345,77 @@ auth/
 }
 ```
 
-#### 2. 管理接口
+**其他响应状态**：
+
+| 状态 | 说明 | HTTP 状态码 |
+|------|------|------------|
+| approved | 授权成功 | 200 |
+| pending | 授权申请已提交，等待审核 | 202 |
+| rejected | 授权已被拒绝 | 200 |
+| expired | 不在授权时间范围内 | 200 |
+| invalid_software | 软件不存在或已禁用 | 400 |
+| no_auth_code | 没有可用的授权码 | 400 |
+
+#### 2. 使用授权码进行授权
+
+**接口地址**：`POST /api/software/authorize-with-code`
+
+**请求头**：
+```
+Authorization: Bearer {授权码}
+```
+
+**验证规则**：
+- `software_name` 必须在软件管理中存在且处于启用状态
+- 请求头中的授权码必须有效且未过期
+
+**请求参数**：
+
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| software_name | string | 是 | 软件名称（必须在软件管理中存在且启用） |
+| software_version | string | 是 | 软件版本号 |
+| os_version | string | 是 | 操作系统版本 |
+| bios_uuid | string | 是 | 主板 BIOS UUID |
+| motherboard_serial | string | 是 | 主板序列号 |
+| cpu_id | string | 是 | CPU 处理器 ID |
+
+**响应示例**：
+
+```json
+{
+  "success": true,
+  "message": "授权成功",
+  "status": "approved"
+}
+```
+
+#### 3. 验证授权码
+
+**接口地址**：`POST /api/authorization-code/validate`
+
+**说明**：由中间件处理，用于验证 Bearer Token 格式的授权码
+
+#### 4. 管理接口
 
 | 接口 | 方法 | 说明 |
 |------|------|------|
 | /software-authorization | GET | 授权管理页面（需要认证） |
-| /software-authorization/{id}/approve | POST | 批准授权 |
+| /software-authorization/{id}/approve | POST | 批准授权（需要授权码ID） |
 | /software-authorization/{id}/reject | POST | 拒绝授权 |
 | /software-authorization/{id}/update | PUT | 更新授权时间范围 |
 | /software-authorization/{id}/access-logs | GET | 获取访问记录（支持分页和筛选） |
 | /software-authorization/{id} | DELETE | 删除授权 |
+| /authorization-code | GET | 授权码管理页面（需要认证） |
+| /authorization-code | POST | 创建授权码 |
+| /authorization-code/{id} | PUT | 更新授权码 |
+| /authorization-code/{id} | DELETE | 删除授权码 |
+| /software | GET | 软件管理页面（需要认证） |
+| /software | POST | 创建软件 |
+| /software/{id} | PUT | 更新软件 |
+| /software/{id} | DELETE | 删除软件 |
+| /software/{id}/toggle | POST | 切换软件启用状态 |
+| /api/software/{id} | GET | 获取软件信息（API） |
 
 **获取访问记录接口参数**：
 

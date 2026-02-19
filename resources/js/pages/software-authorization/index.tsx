@@ -10,11 +10,11 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function SoftwareAuthorizationPage({ authorizations, authorization_codes }: any) {
+export default function SoftwareAuthorizationPage({ authorizations, authorization_codes, software_names }: any) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="软件授权" />
-            <SoftwareAuthorization authorizations={authorizations} authorization_codes={authorization_codes} />
+            <SoftwareAuthorization authorizations={authorizations} authorization_codes={authorization_codes} software_names={software_names} />
         </AppLayout>
     );
 }

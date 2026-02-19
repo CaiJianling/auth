@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { router } from '@inertiajs/react';
-import { Plus, Trash2, Edit2, Power, PowerOff, Download, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Edit2, Power, PowerOff, Download, ExternalLink, ChevronLeft, ChevronRight, Search, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     Table,
@@ -55,6 +55,34 @@ export default function SoftwareManagement({ softwares }: SoftwareManagementProp
     const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
     const [filterStartDate, setFilterStartDate] = useState('');
     const [filterEndDate, setFilterEndDate] = useState('');
+
+    // 搜索框状态
+    const [filterNameSearchTerm, setFilterNameSearchTerm] = useState('');
+
+    // 下拉框显示状态
+    const [isFilterNameDropdownOpen, setIsFilterNameDropdownOpen] = useState(false);
+
+    // 下拉框引用
+    const filterNameDropdownRef = useRef<HTMLDivElement>(null);
+
+    // 点击外部关闭下拉框
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (filterNameDropdownRef.current && !filterNameDropdownRef.current.contains(event.target as Node)) {
+                setIsFilterNameDropdownOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
+    // 过滤软件名称列表
+    const filteredSoftwareNames = softwares.map(s => s.name).filter((name, index, self) =>
+        self.indexOf(name) === index && name.toLowerCase().includes(filterNameSearchTerm.toLowerCase())
+    );
 
     // 分页
     const [currentPage, setCurrentPage] = useState(1);
@@ -220,15 +248,78 @@ export default function SoftwareManagement({ softwares }: SoftwareManagementProp
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="filterName" className="text-sm">软件名称</Label>
-                        <Input
-                            id="filterName"
-                            placeholder="输入软件名称"
-                            value={filterName}
-                            onChange={(e) => {
-                                setFilterName(e.target.value);
-                                setCurrentPage(1);
-                            }}
-                        />
+                        <div ref={filterNameDropdownRef} className="relative">
+                            <div
+                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm cursor-pointer flex items-center justify-between"
+                                onClick={() => setIsFilterNameDropdownOpen(!isFilterNameDropdownOpen)}
+                            >
+                                <span className={filterName ? '' : 'text-muted-foreground'}>
+                                    {filterName || '全部软件名称'}
+                                </span>
+                                {filterName && (
+                                    <X
+                                        className="h-4 w-4 text-muted-foreground hover:text-foreground"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setFilterName('');
+                                            setCurrentPage(1);
+                                        }}
+                                    />
+                                )}
+                            </div>
+                            {isFilterNameDropdownOpen && (
+                                <div className="absolute z-50 mt-1 w-full rounded-md border border-input bg-background shadow-lg">
+                                    <div className="border-b border-border p-2">
+                                        <div className="relative">
+                                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                            <Input
+                                                placeholder="搜索软件名称..."
+                                                value={filterNameSearchTerm}
+                                                onChange={(e) => setFilterNameSearchTerm(e.target.value)}
+                                                className="pl-9"
+                                                autoFocus
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="max-h-60 overflow-y-auto">
+                                        <div
+                                            className="px-3 py-2 hover:bg-muted cursor-pointer flex items-center gap-2"
+                                            onClick={() => {
+                                                setFilterName('');
+                                                setCurrentPage(1);
+                                                setIsFilterNameDropdownOpen(false);
+                                                setFilterNameSearchTerm('');
+                                            }}
+                                        >
+                                            {!filterName && <Check className="h-4 w-4" />}
+                                            <span className={!filterName ? 'font-medium' : ''}>全部软件名称</span>
+                                        </div>
+                                        {filteredSoftwareNames.map((name) => (
+                                            <div
+                                                key={name}
+                                                className="px-3 py-2 hover:bg-muted cursor-pointer flex items-center gap-2"
+                                                onClick={() => {
+                                                    setFilterName(name);
+                                                    setCurrentPage(1);
+                                                    setIsFilterNameDropdownOpen(false);
+                                                    setFilterNameSearchTerm('');
+                                                }}
+                                            >
+                                                {filterName === name && <Check className="h-4 w-4" />}
+                                                <span className={filterName === name ? 'font-medium' : ''}>
+                                                    {name}
+                                                </span>
+                                            </div>
+                                        ))}
+                                        {filteredSoftwareNames.length === 0 && (
+                                            <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+                                                未找到匹配的软件名称
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="filterVersion" className="text-sm">版本号</Label>
