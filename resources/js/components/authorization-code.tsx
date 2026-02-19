@@ -61,31 +61,24 @@ export default function AuthorizationCodeManagement({ codes, authorizations, cod
     // 筛选条件
     const [filterName, setFilterName] = useState('');
     const [filterCode, setFilterCode] = useState(code || '');
-    const [filterSoftwareName, setFilterSoftwareName] = useState(software || '');
     const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
     const [filterStartDate, setFilterStartDate] = useState('');
     const [filterEndDate, setFilterEndDate] = useState('');
 
     // 搜索框状态
     const [filterNameSearchTerm, setFilterNameSearchTerm] = useState('');
-    const [filterSoftwareNameSearchTerm, setFilterSoftwareNameSearchTerm] = useState('');
 
     // 下拉框显示状态
     const [isFilterNameDropdownOpen, setIsFilterNameDropdownOpen] = useState(false);
-    const [isFilterSoftwareNameDropdownOpen, setIsFilterSoftwareNameDropdownOpen] = useState(false);
 
     // 下拉框引用
     const filterNameDropdownRef = useRef<HTMLDivElement>(null);
-    const filterSoftwareNameDropdownRef = useRef<HTMLDivElement>(null);
 
     // 点击外部关闭下拉框
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (filterNameDropdownRef.current && !filterNameDropdownRef.current.contains(event.target as Node)) {
                 setIsFilterNameDropdownOpen(false);
-            }
-            if (filterSoftwareNameDropdownRef.current && !filterSoftwareNameDropdownRef.current.contains(event.target as Node)) {
-                setIsFilterSoftwareNameDropdownOpen(false);
             }
         };
 
@@ -99,13 +92,6 @@ export default function AuthorizationCodeManagement({ codes, authorizations, cod
     const filteredAuthCodeNames = codes.map(c => c.name).filter((name, index, self) =>
         self.indexOf(name) === index && name.toLowerCase().includes(filterNameSearchTerm.toLowerCase())
     );
-
-    // 过滤软件名称列表
-    const filteredSoftwareNames = authorizations
-        ? authorizations.map(auth => auth.software_name).filter((name, index, self) =>
-            self.indexOf(name) === index && name.toLowerCase().includes(filterSoftwareNameSearchTerm.toLowerCase())
-        )
-        : [];
 
     // 分页
     const [currentPage, setCurrentPage] = useState(1);
@@ -221,15 +207,6 @@ export default function AuthorizationCodeManagement({ codes, authorizations, cod
         if (filterCode && !codeData.code.includes(filterCode)) {
             return false;
         }
-        // 根据软件名称筛选：只显示该软件使用的授权码
-        if (filterSoftwareName && authorizations) {
-            const authSoftwareNames = authorizations
-                .filter(auth => auth.authorization_code_id === codeData.id)
-                .map(auth => auth.software_name);
-            if (!authSoftwareNames.some(name => name.toLowerCase().includes(filterSoftwareName.toLowerCase()))) {
-                return false;
-            }
-        }
         if (filterStatus === 'active' && !codeData.is_active) {
             return false;
         }
@@ -268,24 +245,10 @@ export default function AuthorizationCodeManagement({ codes, authorizations, cod
     const handleResetFilters = () => {
         setFilterName('');
         setFilterCode('');
-        setFilterSoftwareName('');
         setFilterStatus('all');
         setFilterStartDate('');
         setFilterEndDate('');
         setCurrentPage(1);
-    };
-
-    // 跳转到软件授权页面
-    const navigateToSoftwareAuthorization = () => {
-        const params = new URLSearchParams();
-        if (filterSoftwareName) {
-            params.append('software', filterSoftwareName);
-        }
-        if (filterCode) {
-            params.append('code', filterCode);
-        }
-        const queryString = params.toString();
-        window.location.href = `/software-authorization${queryString ? '?' + queryString : ''}`;
     };
 
     return (
@@ -308,81 +271,6 @@ export default function AuthorizationCodeManagement({ codes, authorizations, cod
             <div className="rounded-lg border border-border bg-muted/50 p-4">
                 <h3 className="text-sm font-semibold mb-3">筛选条件</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="filterSoftwareName" className="text-sm">软件名称</Label>
-                        <div ref={filterSoftwareNameDropdownRef} className="relative">
-                            <div
-                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm cursor-pointer flex items-center justify-between"
-                                onClick={() => setIsFilterSoftwareNameDropdownOpen(!isFilterSoftwareNameDropdownOpen)}
-                            >
-                                <span className={filterSoftwareName ? '' : 'text-muted-foreground'}>
-                                    {filterSoftwareName || '全部软件名称'}
-                                </span>
-                                {filterSoftwareName && (
-                                    <X
-                                        className="h-4 w-4 text-muted-foreground hover:text-foreground"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setFilterSoftwareName('');
-                                            setCurrentPage(1);
-                                        }}
-                                    />
-                                )}
-                            </div>
-                            {isFilterSoftwareNameDropdownOpen && (
-                                <div className="absolute z-50 mt-1 w-full rounded-md border border-input bg-background shadow-lg">
-                                    <div className="border-b border-border p-2">
-                                        <div className="relative">
-                                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                            <Input
-                                                placeholder="搜索软件名称..."
-                                                value={filterSoftwareNameSearchTerm}
-                                                onChange={(e) => setFilterSoftwareNameSearchTerm(e.target.value)}
-                                                className="pl-9"
-                                                autoFocus
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="max-h-60 overflow-y-auto">
-                                        <div
-                                            className="px-3 py-2 hover:bg-muted cursor-pointer flex items-center gap-2"
-                                            onClick={() => {
-                                                setFilterSoftwareName('');
-                                                setCurrentPage(1);
-                                                setIsFilterSoftwareNameDropdownOpen(false);
-                                                setFilterSoftwareNameSearchTerm('');
-                                            }}
-                                        >
-                                            {!filterSoftwareName && <Check className="h-4 w-4" />}
-                                            <span className={!filterSoftwareName ? 'font-medium' : ''}>全部软件名称</span>
-                                        </div>
-                                        {filteredSoftwareNames.map((name) => (
-                                            <div
-                                                key={name}
-                                                className="px-3 py-2 hover:bg-muted cursor-pointer flex items-center gap-2"
-                                                onClick={() => {
-                                                    setFilterSoftwareName(name);
-                                                    setCurrentPage(1);
-                                                    setIsFilterSoftwareNameDropdownOpen(false);
-                                                    setFilterSoftwareNameSearchTerm('');
-                                                }}
-                                            >
-                                                {filterSoftwareName === name && <Check className="h-4 w-4" />}
-                                                <span className={filterSoftwareName === name ? 'font-medium' : ''}>
-                                                    {name}
-                                                </span>
-                                            </div>
-                                        ))}
-                                        {filteredSoftwareNames.length === 0 && (
-                                            <div className="px-3 py-4 text-center text-sm text-muted-foreground">
-                                                未找到匹配的软件名称
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
                     <div className="space-y-2">
                         <Label htmlFor="filterName" className="text-sm">授权码名称</Label>
                         <div ref={filterNameDropdownRef} className="relative">
@@ -518,10 +406,17 @@ export default function AuthorizationCodeManagement({ codes, authorizations, cod
                             </Button>
                         </div>
                     </div>
-                    {(filterSoftwareName || filterCode) && (
+                    {(filterCode) && (
                         <div className="space-y-2">
                             <Label className="text-sm">关联筛选</Label>
-                            <Button onClick={navigateToSoftwareAuthorization} variant="default" className="flex items-center gap-2">
+                            <Button onClick={() => {
+                                const params = new URLSearchParams();
+                                if (filterCode) {
+                                    params.append('code', filterCode);
+                                }
+                                const queryString = params.toString();
+                                window.location.href = `/software-authorization${queryString ? '?' + queryString : ''}`;
+                            }} variant="default" className="flex items-center gap-2">
                                 <ArrowLeft className="h-4 w-4" />
                                 查看软件授权
                             </Button>
